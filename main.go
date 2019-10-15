@@ -42,14 +42,43 @@ func init() {
 	registry.MustRegister(swiftAcountUsed)
 }
 
-//func ScrapeSwiftAcount(client *client, updatedAfter *time.Time) (error, *time.Time){
-//
-//}
+// list account info for exporting and add to prometheus registry
+func getSwiftAcountInfo(client swift.Connection, updatedAfter *time.Time) (error, *time.Time) {
+
+	var err error
+	var info swift.Account
+	var hdr swift.Headers
+
+	info, hdr, err = client.Account()
+	if err != nil {
+		log.Println(err)
+	} else {
+		var currentSwiftAcountUsed float64
+		var currentSwiftQuota float64
+
+		currentSwiftAcountUsed = float64(info.BytesUsed)
+
+		// TODO check if BytesUsed value is zero or greater
+
+		swiftAcountUsed.Set(currentSwiftAcountUsed)
+		fmt.Printf("Bytes used: %.0f\n", currentSwiftAcountUsed)
+
+		currentSwiftQuota, err = strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
+		if err != nil {
+			panic(err)
+		} else {
+			swiftAcountQuota.Set(currentSwiftQuota)
+		}
+		fmt.Printf("Quota: %.0f\n", currentSwiftQuota)
+	}
+	//TODO fill this vars
+	return err, updatedAfter
+}
 
 func main() {
 	flag.Parse()
 
-	//var lastUpdateTime *time.Time
+	var lastUpdateTime *time.Time
 
 	// setup insecure tls
 	transport := &http.Transport{
@@ -60,6 +89,7 @@ func main() {
 
 	// Create a connection
 	client := swift.Connection{
+		//TODO rewrite to flags/params
 		UserName:  "",
 		ApiKey:    "",
 		AuthUrl:   "https://10.200.52.80:5000/v2.0",
@@ -71,55 +101,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// List all the containers
-	//containers, err := client.ContainerNames(nil)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//for index := range containers {
-	//	fmt.Printf("Found container: %s\n", containers[index])
-	//}
 
-	// list account info for exporting
-	//info, hdr, err := client.Account()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Printf("Bytes used: %d\n", info.BytesUsed)
-	//fmt.Printf("Quota: %s\n", hdr["X-Account-Meta-Quota-Bytes"])
-
+	// run main goroutine
 	go func() {
-		//var err error
 		for {
-			//err, lastUpdateTime = ScrapeSwiftAcount(client)
-
-			// list account info for exporting
-			info, hdr, err := client.Account()
-			if err != nil {
-				log.Println(err)
-			} else {
-				var currentSwiftAcountUsed float64
-				var currentSwiftQuota float64
-
-				currentSwiftAcountUsed = float64(info.BytesUsed)
-				swiftAcountUsed.Set(currentSwiftAcountUsed)
-				fmt.Printf("Bytes used: %.0f\n", currentSwiftAcountUsed)
-
-				var err error
-				currentSwiftQuota, err = strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
-				if err != nil {
-					//fmt.Println(currentSwiftQuota)
-				} else {
-					swiftAcountQuota.Set(currentSwiftQuota)
-				}
-				fmt.Printf("Quota: %.0f\n", currentSwiftQuota)
-			}
+			err, lastUpdateTime = getSwiftAcountInfo(client, lastUpdateTime)
 
 			time.Sleep(3 * time.Second)
 		}
 	}()
-
-	//fmt.Printf("last update time: %s \n", lastUpdateTime)
 
 	// export metrics endpoint
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
