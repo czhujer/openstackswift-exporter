@@ -6,18 +6,24 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	"fmt"
 	"github.com/ncw/swift"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
 
 var (
 	addr = flag.String("listen-address", ":8080", "The address to listen on for HTTP requests.")
+
+	swiftAuthUrl        string
+	swiftUserName       string
+	swiftPassword       string
+	swiftTenant         string
+	swiftUseInsecureTLS bool
 
 	// quota and real usage
 	swiftAcountQuota = prometheus.NewGauge(
@@ -51,7 +57,7 @@ func getSwiftAcountInfo(client swift.Connection, updatedAfter *time.Time) (error
 
 	info, hdr, err = client.Account()
 	if err != nil {
-		log.Println(err)
+		log.Fatalf("Can't get info from Swift (%s) \n", err.Error())
 	} else {
 		var currentSwiftAcountUsed float64
 		var currentSwiftQuota float64
@@ -61,52 +67,67 @@ func getSwiftAcountInfo(client swift.Connection, updatedAfter *time.Time) (error
 		// TODO check if BytesUsed value is zero or greater
 
 		swiftAcountUsed.Set(currentSwiftAcountUsed)
-		fmt.Printf("Bytes used: %.0f\n", currentSwiftAcountUsed)
+		//fmt.Printf("Bytes used: %.0f\n", currentSwiftAcountUsed)
 
 		currentSwiftQuota, err = strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Can't parse info from Swift (%s) \n", err.Error())
 		} else {
 			swiftAcountQuota.Set(currentSwiftQuota)
 		}
-		fmt.Printf("Quota: %.0f\n", currentSwiftQuota)
+		//fmt.Printf("Quota: %.0f\n", currentSwiftQuota)
 	}
 	//TODO fill this vars
 	return err, updatedAfter
 }
 
 func main() {
+	flag.StringVar(&swiftAuthUrl, "swift-auth-url", "https://10.200.52.80:5000/v2.0", "The URL for Swift connection")
+	flag.StringVar(&swiftUserName, "swift-user-name", "", "The username for swift login")
+	flag.StringVar(&swiftPassword, "swift-password", "", "The password for swift login")
+	flag.StringVar(&swiftTenant, "swift-tenant", "cc", "The tenant name for swift")
+	flag.BoolVar(&swiftUseInsecureTLS, "swift-use-insecure-tls", false, "Use InsecureTLS for Swift communication")
 	flag.Parse()
 
 	var lastUpdateTime *time.Time
+	var err error
+
+	// test input vars
+	_, err = url.ParseRequestURI(swiftAuthUrl)
+	if err != nil {
+		log.Fatalf("Wrong or empty URL for Swift Endpoint (%s) \n", err.Error())
+	}
+
+	if swiftUserName == "" {
+		log.Fatalf("Empty username for Swift login!\n")
+	}
+
+	if swiftPassword == "" {
+		log.Fatalf("Empty password for Swift login!\n")
+	}
 
 	// setup insecure tls
-	transport := &http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
-		MaxIdleConnsPerHost: 2048,
-	}
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	transport := &http.Transport{}
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: swiftUseInsecureTLS}
 
 	// Create a connection
 	client := swift.Connection{
-		//TODO rewrite to flags/params
-		UserName:  "",
-		ApiKey:    "",
-		AuthUrl:   "https://10.200.52.80:5000/v2.0",
-		Tenant:    "cc",
+		UserName:  swiftUserName,
+		ApiKey:    swiftPassword,
+		AuthUrl:   swiftAuthUrl,
+		Tenant:    swiftTenant,
 		Transport: transport,
 	}
 	// Authenticate
-	err := client.Authenticate()
+	err = client.Authenticate()
 	if err != nil {
-		panic(err)
+		log.Fatalf("Can't authenticate to Swift (%s) \n", err.Error())
 	}
 
 	// run main goroutine
 	go func() {
 		for {
 			err, lastUpdateTime = getSwiftAcountInfo(client, lastUpdateTime)
-
 			time.Sleep(3 * time.Second)
 		}
 	}()
