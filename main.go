@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"time"
 )
@@ -81,6 +82,13 @@ func getSwiftAcountInfo(client swift.Connection, updatedAfter *time.Time) (error
 	return err, updatedAfter
 }
 
+// print error and usage and die
+func logFatalfwithUsage(format string, v ...interface{}) {
+	log.Printf(format, v...)
+	flag.Usage()
+	os.Exit(1)
+}
+
 func main() {
 	flag.StringVar(&swiftAuthUrl, "swift-auth-url", "https://10.200.52.80:5000/v2.0", "The URL for Swift connection")
 	flag.StringVar(&swiftUserName, "swift-user-name", "", "The username for swift login")
@@ -99,14 +107,14 @@ func main() {
 	}
 
 	if swiftUserName == "" {
-		log.Fatalf("Empty username for Swift login!\n")
+		logFatalfwithUsage("Empty username for Swift login!\n")
 	}
 
 	if swiftPassword == "" {
-		log.Fatalf("Empty password for Swift login!\n")
+		logFatalfwithUsage("Empty password for Swift login!\n")
 	}
 
-	// setup insecure tls
+	// setup tls
 	transport := &http.Transport{}
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: swiftUseInsecureTLS}
 
