@@ -65,8 +65,6 @@ func getSwiftAcountInfo(client swift.Connection, updatedAfter *time.Time) (error
 
 		currentSwiftAcountUsed = float64(info.BytesUsed)
 
-		// TODO check if BytesUsed value is zero or greater
-
 		swiftAcountUsed.Set(currentSwiftAcountUsed)
 		//fmt.Printf("Bytes used: %.0f\n", currentSwiftAcountUsed)
 
