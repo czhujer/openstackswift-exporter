@@ -58,7 +58,7 @@ func getSwiftAcountInfo(client swift.Connection) error {
 
 	info, hdr, err = client.Account()
 	if err != nil {
-		log.Fatalf("Can't get info from Swift (%s) \n", err.Error())
+		log.Printf("Can't get info from Swift (%s) \n", err.Error())
 	} else {
 		var currentSwiftAcountUsed float64
 		var currentSwiftQuota float64
@@ -70,7 +70,7 @@ func getSwiftAcountInfo(client swift.Connection) error {
 
 		currentSwiftQuota, err = strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
 		if err != nil {
-			log.Fatalf("Can't parse info from Swift (%s) \n", err.Error())
+			log.Printf("Can't parse info from Swift (%s) \n", err.Error())
 		} else {
 			swiftAcountQuota.Set(currentSwiftQuota)
 		}
@@ -94,7 +94,6 @@ func main() {
 	flag.BoolVar(&swiftUseInsecureTLS, "swift-use-insecure-tls", false, "Use InsecureTLS for Swift communication")
 	flag.Parse()
 
-	var lastUpdateTime *time.Time
 	var err error
 
 	// test input vars
