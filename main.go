@@ -50,7 +50,7 @@ func init() {
 }
 
 // list account info for exporting and add to prometheus registry
-func getSwiftAcountInfo(client swift.Connection, updatedAfter *time.Time) (error, *time.Time) {
+func getSwiftAcountInfo(client swift.Connection) error {
 
 	var err error
 	var info swift.Account
@@ -76,8 +76,7 @@ func getSwiftAcountInfo(client swift.Connection, updatedAfter *time.Time) (error
 		}
 		//fmt.Printf("Quota: %.0f\n", currentSwiftQuota)
 	}
-	//TODO fill this vars
-	return err, updatedAfter
+	return err
 }
 
 // print error and usage and die
@@ -133,7 +132,7 @@ func main() {
 	// run main goroutine
 	go func() {
 		for {
-			err, lastUpdateTime = getSwiftAcountInfo(client, lastUpdateTime)
+			err = getSwiftAcountInfo(client)
 			time.Sleep(3 * time.Second)
 		}
 	}()
