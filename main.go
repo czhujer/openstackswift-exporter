@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	addr = flag.String("listen-address", ":8080", "The address to listen on for HTTP requests.")
+	addr string
 
 	swiftAuthUrl        string
 	swiftUserName       string
@@ -27,15 +27,15 @@ var (
 	swiftUseInsecureTLS bool
 
 	// quota and real usage
-	swiftAcountQuota = prometheus.NewGauge(
+	swiftAccountQuotaBytes = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "swift_account_quota",
+			Name: "swift_account_quota_bytes",
 			Help: "Quota for OpenStack Swift Account",
 		},
 	)
-	swiftAcountUsed = prometheus.NewGauge(
+	swiftAcountUsedBytes = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "swift_account_used",
+			Name: "swift_account_used_bytes",
 			Help: "Used space by containers",
 		},
 	)
@@ -45,8 +45,8 @@ var (
 
 func init() {
 	registry = prometheus.NewRegistry()
-	registry.MustRegister(swiftAcountQuota)
-	registry.MustRegister(swiftAcountUsed)
+	registry.MustRegister(swiftAccountQuotaBytes)
+	registry.MustRegister(swiftAcountUsedBytes)
 }
 
 // list account info for exporting and add to prometheus registry
@@ -59,44 +59,32 @@ func getSwiftAcountInfo(client swift.Connection) error {
 	info, hdr, err = client.Account()
 	if err != nil {
 		log.Printf("Can't get info from Swift (%s) \n", err.Error())
-	} else {
-		var currentSwiftAcountUsed float64
-		var currentSwiftQuota float64
-
-		currentSwiftAcountUsed = float64(info.BytesUsed)
-
-		swiftAcountUsed.Set(currentSwiftAcountUsed)
-		//fmt.Printf("Bytes used: %.0f\n", currentSwiftAcountUsed)
-
-		currentSwiftQuota, err = strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
-		if err != nil {
-			log.Printf("Can't parse info from Swift (%s) \n", err.Error())
-		} else {
-			swiftAcountQuota.Set(currentSwiftQuota)
-		}
-		//fmt.Printf("Quota: %.0f\n", currentSwiftQuota)
+		return err
 	}
+
+	var currentSwiftAcountUsed float64 = float64(info.BytesUsed)
+	var currentSwiftQuota float64
+
+	swiftAcountUsedBytes.Set(currentSwiftAcountUsed)
+	//fmt.Printf("Bytes used: %.0f\n", currentSwiftAcountUsed)
+
+	currentSwiftQuota, err = strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
+	if err != nil {
+		log.Printf("Can't parse info from Swift (%s) \n", err.Error())
+		return err
+	}
+
+	swiftAccountQuotaBytes.Set(currentSwiftQuota)
+	//fmt.Printf("Quota: %.0f\n", currentSwiftQuota)
+
 	return err
 }
 
-// print error and usage and die
-func logFatalfwithUsage(format string, v ...interface{}) {
-	log.Printf(format, v...)
-	flag.Usage()
-	os.Exit(1)
-}
-
-func main() {
-	flag.StringVar(&swiftAuthUrl, "swift-auth-url", "https://10.200.52.80:5000/v2.0", "The URL for Swift connection")
-	flag.StringVar(&swiftUserName, "swift-user-name", "", "The username for swift login")
-	flag.StringVar(&swiftPassword, "swift-password", "", "The password for swift login")
-	flag.StringVar(&swiftTenant, "swift-tenant", "cc", "The tenant name for swift")
-	flag.BoolVar(&swiftUseInsecureTLS, "swift-use-insecure-tls", false, "Use InsecureTLS for Swift communication")
-	flag.Parse()
+// check input from cmd args
+func checkInputVars() error {
 
 	var err error
 
-	// test input vars
 	_, err = url.ParseRequestURI(swiftAuthUrl)
 	if err != nil {
 		log.Fatalf("Wrong or empty URL for Swift Endpoint (%s) \n", err.Error())
@@ -109,6 +97,30 @@ func main() {
 	if swiftPassword == "" {
 		logFatalfwithUsage("Empty password for Swift login!\n")
 	}
+
+	return err
+}
+
+// print error and usage and die
+func logFatalfwithUsage(format string, v ...interface{}) {
+	log.Printf(format, v...)
+	flag.Usage()
+	os.Exit(1)
+}
+
+func main() {
+	flag.StringVar(&addr, "listen-address", ":8080", "The address to listen on for HTTP requests.")
+	flag.StringVar(&swiftAuthUrl, "swift-auth-url", "https://10.200.52.80:5000/v2.0", "The URL for Swift connection")
+	flag.StringVar(&swiftUserName, "swift-user-name", "", "The username for swift login")
+	flag.StringVar(&swiftPassword, "swift-password", "", "The password for swift login")
+	flag.StringVar(&swiftTenant, "swift-tenant", "cc", "The tenant name for swift")
+	flag.BoolVar(&swiftUseInsecureTLS, "swift-use-insecure-tls", false, "Use InsecureTLS for Swift communication")
+	flag.Parse()
+
+	var err error
+
+	// test input vars
+	err = checkInputVars()
 
 	// setup tls
 	transport := &http.Transport{}
@@ -132,13 +144,13 @@ func main() {
 	go func() {
 		for {
 			err = getSwiftAcountInfo(client)
-			time.Sleep(3 * time.Second)
+			time.Sleep(30 * time.Second)
 		}
 	}()
 
 	// export metrics endpoint
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	http.Handle("/metrics", handler)
-	log.Printf("exposing metrics on %v/metrics\n", *addr)
-	log.Fatal(http.ListenAndServe(*addr, nil))
+	log.Printf("exposing metrics on %v/metrics\n", addr)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
