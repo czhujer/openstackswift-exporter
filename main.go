@@ -40,6 +40,9 @@ var (
 		},
 	)
 
+	currentSwiftAcountUsed float64
+	currentSwiftQuota      float64
+
 	registry *prometheus.Registry
 )
 
@@ -49,8 +52,8 @@ func init() {
 	registry.MustRegister(swiftAcountUsedBytes)
 }
 
-// list account info for exporting and add to prometheus registry
-func getSwiftAcountInfo(client swift.Connection) error {
+// list account info and extract values for exporting
+func CollectSwiftAcountInfo(client swift.Connection) error {
 
 	info, hdr, err := client.Account()
 	if err != nil {
@@ -58,21 +61,24 @@ func getSwiftAcountInfo(client swift.Connection) error {
 		return err
 	}
 
-	currentSwiftAcountUsed := float64(info.BytesUsed)
+	currentSwiftAcountUsed = float64(info.BytesUsed)
 
-	swiftAcountUsedBytes.Set(currentSwiftAcountUsed)
 	//fmt.Printf("Bytes used: %.0f\n", currentSwiftAcountUsed)
 
-	currentSwiftQuota, err := strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
+	currentSwiftQuota, err = strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
 	if err != nil {
 		log.Printf("Can't parse info from Swift (%s) \n", err.Error())
 		return err
 	}
-
-	swiftAccountQuotaBytes.Set(currentSwiftQuota)
 	//fmt.Printf("Quota: %.0f\n", currentSwiftQuota)
 
 	return err
+}
+
+// publish metrics
+func publishMetrics() {
+	swiftAccountQuotaBytes.Set(currentSwiftQuota)
+	swiftAcountUsedBytes.Set(currentSwiftAcountUsed)
 }
 
 // check input from cmd args
@@ -137,7 +143,8 @@ func main() {
 	// run main goroutine
 	go func() {
 		for {
-			err = getSwiftAcountInfo(client)
+			err = CollectSwiftAcountInfo(client)
+			publishMetrics()
 			time.Sleep(30 * time.Second)
 		}
 	}()
