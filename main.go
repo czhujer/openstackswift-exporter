@@ -52,23 +52,18 @@ func init() {
 // list account info for exporting and add to prometheus registry
 func getSwiftAcountInfo(client swift.Connection) error {
 
-	var err error
-	var info swift.Account
-	var hdr swift.Headers
-
-	info, hdr, err = client.Account()
+	info, hdr, err := client.Account()
 	if err != nil {
 		log.Printf("Can't get info from Swift (%s) \n", err.Error())
 		return err
 	}
 
-	var currentSwiftAcountUsed float64 = float64(info.BytesUsed)
-	var currentSwiftQuota float64
+	currentSwiftAcountUsed := float64(info.BytesUsed)
 
 	swiftAcountUsedBytes.Set(currentSwiftAcountUsed)
 	//fmt.Printf("Bytes used: %.0f\n", currentSwiftAcountUsed)
 
-	currentSwiftQuota, err = strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
+	currentSwiftQuota, err := strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
 	if err != nil {
 		log.Printf("Can't parse info from Swift (%s) \n", err.Error())
 		return err
@@ -81,7 +76,7 @@ func getSwiftAcountInfo(client swift.Connection) error {
 }
 
 // check input from cmd args
-func checkInputVars() error {
+func checkInputVars() {
 
 	var err error
 
@@ -98,7 +93,6 @@ func checkInputVars() error {
 		logFatalfwithUsage("Empty password for Swift login!\n")
 	}
 
-	return err
 }
 
 // print error and usage and die
@@ -120,7 +114,7 @@ func main() {
 	var err error
 
 	// test input vars
-	err = checkInputVars()
+	checkInputVars()
 
 	// setup tls
 	transport := &http.Transport{}
