@@ -145,6 +145,16 @@ func main() {
 	// export metrics endpoint
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	http.Handle("/metrics", handler)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`<html>
+			<head><title>OpenstackSwift Exporter</title></head>
+			<body>
+			<h1>OpenstackSwift Exporter</h1>
+			<p><a href="/metrics">Metrics</a></p>
+			</body>
+			</html>`))
+	})
+
 	log.Printf("exposing metrics on %v/metrics\n", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
