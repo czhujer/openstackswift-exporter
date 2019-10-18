@@ -44,6 +44,14 @@ var (
 	currentSwiftQuota      float64
 
 	registry *prometheus.Registry
+
+	rootHandlerResponse = `<html>
+			<head><title>OpenstackSwift Exporter</title></head>
+			<body>
+			<h1>OpenstackSwift Exporter</h1>
+			<p><a href="/metrics">Metrics</a></p>
+			</body>
+			</html>`
 )
 
 func init() {
@@ -108,6 +116,10 @@ func logFatalfwithUsage(format string, v ...interface{}) {
 	os.Exit(1)
 }
 
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte(rootHandlerResponse))
+}
+
 func main() {
 	flag.StringVar(&addr, "listen-address", ":8080", "The address to listen on for HTTP requests.")
 	flag.StringVar(&swiftAuthUrl, "swift-auth-url", "https://10.200.52.80:5000/v2.0", "The URL for Swift connection")
@@ -150,17 +162,9 @@ func main() {
 	}()
 
 	// export metrics endpoint
-	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	http.Handle("/metrics", handler)
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
-			<head><title>OpenstackSwift Exporter</title></head>
-			<body>
-			<h1>OpenstackSwift Exporter</h1>
-			<p><a href="/metrics">Metrics</a></p>
-			</body>
-			</html>`))
-	})
+	metricsHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	http.Handle("/metrics", metricsHandler)
+	http.HandleFunc("/", rootHandler)
 
 	log.Printf("exposing metrics on %v/metrics\n", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
