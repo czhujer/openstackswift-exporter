@@ -53,7 +53,7 @@ func init() {
 }
 
 // list account info and extract values for exporting
-func CollectSwiftAcountInfo(client swift.Connection) error {
+func collectSwiftAcountInfo(client swift.Connection) error {
 
 	info, hdr, err := client.Account()
 	if err != nil {
@@ -143,7 +143,7 @@ func main() {
 	// run main goroutine
 	go func() {
 		for {
-			err = CollectSwiftAcountInfo(client)
+			err = collectSwiftAcountInfo(client)
 			publishMetrics()
 			time.Sleep(30 * time.Second)
 		}
