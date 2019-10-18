@@ -57,7 +57,7 @@ func CollectSwiftAcountInfo(client swift.Connection) error {
 
 	info, hdr, err := client.Account()
 	if err != nil {
-		log.Printf("Can't get info from Swift (%s) \n", err.Error())
+		log.Printf("Can't get info from Swift: %s \n", err.Error())
 		return err
 	}
 
@@ -67,7 +67,7 @@ func CollectSwiftAcountInfo(client swift.Connection) error {
 
 	currentSwiftQuota, err = strconv.ParseFloat(hdr["X-Account-Meta-Quota-Bytes"], 64)
 	if err != nil {
-		log.Printf("Can't parse info from Swift (%s) \n", err.Error())
+		log.Printf("Can't parse info from Swift: %s \n", err.Error())
 		return err
 	}
 	//fmt.Printf("Quota: %.0f\n", currentSwiftQuota)
@@ -88,7 +88,7 @@ func checkInputVars() {
 
 	_, err = url.ParseRequestURI(swiftAuthUrl)
 	if err != nil {
-		log.Fatalf("Wrong or empty URL for Swift Endpoint (%s) \n", err.Error())
+		log.Fatalf("Wrong or empty URL for Swift Endpoint: %s \n", err.Error())
 	}
 
 	if swiftUserName == "" {
@@ -137,7 +137,7 @@ func main() {
 	// Authenticate
 	err = client.Authenticate()
 	if err != nil {
-		log.Fatalf("Can't authenticate to Swift (%s) \n", err.Error())
+		log.Fatalf("Can't authenticate to Swift: %s \n", err.Error())
 	}
 
 	// run main goroutine
