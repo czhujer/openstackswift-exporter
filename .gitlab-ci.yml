@@ -1,0 +1,28 @@
+stages:
+  - image
+  - deploy
+
+docker build:
+  stage: image
+  image: docker:17.05.0-ce-git
+  tags:
+    - dind
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+#    - echo -e "package main\n\nconst gitlabToken = \"$BUILD_GITLAB_TOKEN\"" > config.go
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" --build-arg "GITLAB_TOKEN=$BUILD_GITLAB_TOKEN" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+
+deploy svc:
+  stage: deploy
+  image: registry.mallgroup.com/cc/infrastructure/deployer:1.0-alpha24
+  script: deploy update
+  only:
+    refs:
+      - deploy/svc
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none # https://docs.gitlab.com/ee/ci/yaml/#git-strategy
+    DEPLOY_STAGE: prod
+    DEPLOY_IMAGE: $CI_REGISTRY_IMAGE
+    DEPLOY_TAG: $CI_COMMIT_SHA
