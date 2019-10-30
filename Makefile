@@ -1,5 +1,5 @@
 IMAGE = registry.mallgroup.com/cc/openstackswift-exporter
-VERSION = 1.0
+VERSION = 1.1
 
 .PHONY: _
 _: build publish
