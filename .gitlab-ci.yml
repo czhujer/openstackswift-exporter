@@ -13,7 +13,7 @@ docker build:
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
 #    - echo -e "package main\n\nconst gitlabToken = \"$BUILD_GITLAB_TOKEN\"" > config.go
-    - docker build -t "$CI_REGISTRY_IMAGE:$VERSION" --build-arg "GITLAB_TOKEN=$BUILD_GITLAB_TOKEN" .
+    - docker build -t "$CI_REGISTRY_IMAGE:$VERSION" .
     - docker push "$CI_REGISTRY_IMAGE:$VERSION"
 
 deploy svc:
