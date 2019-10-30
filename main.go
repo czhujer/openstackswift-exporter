@@ -6,6 +6,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"github.com/ncw/swift"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -23,6 +24,8 @@ var (
 	swiftAuthUrl        string
 	swiftUserName       string
 	swiftPassword       string
+	swiftUserNameEnv    string
+	swiftPasswordEnv    string
 	swiftTenant         string
 	swiftUseInsecureTLS bool
 
@@ -109,6 +112,30 @@ func checkInputVars() {
 
 }
 
+// parse and fill input vars
+func parseInputVars() {
+	flag.StringVar(&addr, "listen-address", ":8080", "The address to listen on for HTTP requests.")
+	flag.StringVar(&swiftAuthUrl, "swift-auth-url", "https://10.200.52.80:5000/v2.0", "The URL for Swift connection")
+	flag.StringVar(&swiftUserName, "swift-user-name", "", "The username for swift login")
+	flag.StringVar(&swiftPassword, "swift-password", "", "The password for swift login")
+	flag.StringVar(&swiftTenant, "swift-tenant", "cc", "The tenant name for swift")
+	flag.BoolVar(&swiftUseInsecureTLS, "swift-use-insecure-tls", false, "Use InsecureTLS for Swift communication")
+	flag.Parse()
+
+	swiftUserNameEnv := os.Getenv("SWIFTUSERNAME")
+	swiftUserPassEnv := os.Getenv("SWIFTUSERPASS")
+
+	if swiftUserName == "" && swiftUserNameEnv != "" {
+		fmt.Println("INFO: ENV userName used")
+		swiftUserName = swiftUserNameEnv
+	}
+
+	if swiftPassword == "" && swiftUserPassEnv != "" {
+		fmt.Println("INFO: ENV userPass used")
+		swiftPassword = swiftUserPassEnv
+	}
+}
+
 // print error and usage and die
 func logFatalfwithUsage(format string, v ...interface{}) {
 	log.Printf(format, v...)
@@ -121,15 +148,10 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	flag.StringVar(&addr, "listen-address", ":8080", "The address to listen on for HTTP requests.")
-	flag.StringVar(&swiftAuthUrl, "swift-auth-url", "https://10.200.52.80:5000/v2.0", "The URL for Swift connection")
-	flag.StringVar(&swiftUserName, "swift-user-name", "", "The username for swift login")
-	flag.StringVar(&swiftPassword, "swift-password", "", "The password for swift login")
-	flag.StringVar(&swiftTenant, "swift-tenant", "cc", "The tenant name for swift")
-	flag.BoolVar(&swiftUseInsecureTLS, "swift-use-insecure-tls", false, "Use InsecureTLS for Swift communication")
-	flag.Parse()
-
 	var err error
+
+	// parse and fill input vars
+	parseInputVars()
 
 	// test input vars
 	checkInputVars()
