@@ -7,9 +7,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -mod vend
 FROM alpine:3.10
 COPY --from=builder /src/openstackswift-exporter /opt/openstackswift-exporter
 
+ENV SWIFTUSERNAME swift-user
+ENV SWIFTUSERPASS swift-password
+
+ENTRYPOINT ["/opt/openstackswift-exporter"]
+
 CMD [ \
-    "/opt/openstackswift-exporter", \
-    "-swift-user-name=swift-user", \
-    "-swift-password=pass", \
     "-swift-use-insecure-tls" \
      ]
