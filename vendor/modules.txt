@@ -4,7 +4,7 @@ github.com/beorn7/perks/quantile
 github.com/golang/protobuf/proto
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/ncw/swift v1.0.49
+# github.com/ncw/swift v1.0.53
 github.com/ncw/swift
 # github.com/prometheus/client_golang v1.1.0
 github.com/prometheus/client_golang/prometheus
