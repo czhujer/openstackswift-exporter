@@ -4,7 +4,7 @@ WORKDIR /src
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -mod vendor -o openstackswift-exporter .
 
-FROM alpine:3.10
+FROM alpine:3.16
 COPY --from=builder /src/openstackswift-exporter /opt/openstackswift-exporter
 
 ENV SWIFTUSERNAME swift-user
